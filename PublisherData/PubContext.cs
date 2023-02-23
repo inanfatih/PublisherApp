@@ -4,8 +4,10 @@ using PublisherDomain;
 
 namespace PublisherData
 {
+    // DbContext helps accessing the database
     public class PubContext : DbContext
     {
+        // DbSet holds the data of tables
         public DbSet<Author> Authors { get; set; }
         public DbSet<Book> Books { get; set; }
         public DbSet<Artist> Artists { get; set; }
@@ -22,6 +24,7 @@ namespace PublisherData
             .EnableSensitiveDataLogging();
         }
         
+        // Further configuration of the context
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AuthorByArtist>().HasNoKey()

@@ -1,12 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PublisherData;
 using PublisherDomain;
-using System;
 
 #pragma warning disable CS8321 // Local function is declared but never used
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 #pragma warning disable CS8603 // Possible null reference return.
-
 
 
 using (PubContext context = new PubContext())
@@ -14,10 +12,11 @@ using (PubContext context = new PubContext())
     context.Database.EnsureCreated();
 }
 
-// ExecutionTiming();
+PubContext _context = new PubContext();
+
+ ExecutionTiming();
 void ExecutionTiming()
 {
-    using var _context = new PubContext();
     //Nothing Happens
     var query = _context.Authors;
     //Now query executes
@@ -33,10 +32,11 @@ void ExecutionTiming()
 }
 
 
-ParametrizedVariables();
+// ParametrizedVariables();
 void ParametrizedVariables()
 {
-    using var _context = new PubContext();
+    // EF Core will always parametrize INSERT, UPDATE, DELETE commands
+    // Variables will be parametrized in SELECTs
 
     var query = _context.Authors;
 
@@ -44,7 +44,6 @@ void ParametrizedVariables()
 
     var id = 1;
     _ = query.FirstOrDefault(x => x.AuthorId == id);
-    //And here
     _ = _context.Authors.Find(2);
 }
 
@@ -52,55 +51,33 @@ void ParametrizedVariables()
 // GetByPrimaryKey();
 void GetByPrimaryKey()
 {
-    using var _context = new PubContext();
     //Get by primary key with immediate execution
     _ = _context.Authors.Find(1);
     //Complex PK with immediate execution
     _ = _context.Artists.Find(2, 1688);
 }
 
-// GetSingleRecord();
-void GetSingleRecord()
-{
-    using var _context = new PubContext();
-
-    //All immediate execution
-    //NOTE: should use an order by with these
-    _ = _context.Authors.Where(x => x.AuthorId == 1).FirstOrDefault();
-    _ = _context.Authors.FirstOrDefault(x => x.AuthorId == 1);
-    //Using Single - Exception if more than one is found
-    _ = _context.Authors.SingleOrDefault(x => x.AuthorId == 1);
-}
-
 // SelectWithMultipleClauses();
 void SelectWithMultipleClauses()
 {
-    using var _context = new PubContext();
-    //All in one statement
     var query1 = _context.Authors
         .Where(x => x.FirstName == "em" && x.AuthorId == 1);
+
     //Chained statements
     var query2 = _context.Authors
-        .Where(x => x.FirstName == "em").Where(x => x.AuthorId == 1);
-    //Built up over disparate calls
-    var query3 = _context.Authors.Where(x => x.FirstName == "em");
-    query3 = query3.Where(x => x.AuthorId == 1);
+        .Where(x => x.FirstName == "em")
+        .OrderBy(x => x.FirstName);
 
-    //Or's can't be chained
-    var query4 = _context.Authors
-        .Where(x => x.FirstName == "em" || x.AuthorId == 1);
+    var query3 = _context.Authors.Where(x => x.FirstName == "em");
+
+    query3 = query3.OrderBy(x => x.FirstName);
 }
 
 // UsingCSharpLikeFunction();
 void UsingCSharpLikeFunction()
 {
-    using var _context = new PubContext();
-    List<int> list = new List<int> { 1, 3, 5 };
-    
-    var query = _context.Authors.Where(x => list.Contains(x.AuthorId));
-    _ = _context.Authors.Where(x => x.LastName.Contains("UF"));
-    _ = _context.Authors.Where(x => EF.Functions.Like(x.LastName, "%UF%"));
-    //IsDate translates to the TSQL IsDate function 
+    // All LINQ methods are available in EF
+
     _ = _context.Authors.Where(x => EF.Functions.IsDate(x.FirstName));
     decimal sum = _context.Books.Sum(x => x.BasePrice);
     int count = _context.Books.Count(x => x.BasePrice != 0);
@@ -109,30 +86,21 @@ void UsingCSharpLikeFunction()
     decimal min = _context.Books.Min(x => (decimal?)x.BasePrice) ?? 0;
     bool any = _context.Books.Any(x => x.BasePrice != 0);
     bool all = _context.Books.All(x => x.BasePrice != 0);
-}
-
-// SortDataServerSide();
-void SortDataServerSide()
-{
-    using var _context = new PubContext();
-
-    IOrderedQueryable<Author> query1 =
-        _context.Authors.OrderBy(x => x.AuthorId).ThenBy(x => x.FirstName);
-    IOrderedQueryable<Author> query2 =
-        _context.Authors.OrderByDescending(x => x.AuthorId).ThenBy(x => x.FirstName);
+    var query1 = _context.Authors.OrderBy(x => x.AuthorId).ThenBy(x => x.FirstName);
+    var  query2 = _context.Authors.OrderByDescending(x => x.AuthorId).ThenBy(x => x.FirstName);
 }
 
 // PageRecords();
 void PageRecords()
 {
-    using var _context = new PubContext();
     var prodList = _context.Authors
         .Where(x => x.FirstName == "em")
         .OrderBy(x => x.AuthorId)
-        .Skip(25).Take(50);
+        .Skip(25)
+        .Take(50);
 }
 
-//AddAuthorWithBook();
+// AddAuthorWithBook();
 void AddAuthorWithBook()
 {
     var author = new Author { FirstName = "Julie", LastName = "Lerman" };
@@ -146,16 +114,80 @@ void AddAuthorWithBook()
         Title = "Programming Entity Framework 2nd Ed",
         PublishDate = new DateTime(2010, 8, 1)
     });
-    using var context = new PubContext();
-    context.Authors.Add(author);
-    context.SaveChanges();
+
+    // Will NOT trigger any query execution
+    _context.Authors.Add(author);
+    // Will trigger query execution
+    // EF will set Book Id and Author ID and will update the objects after query execution
+    _context.SaveChanges();
+
+    author.FirstName = "New author";
+    author.Books.RemoveAt(0);
+
+    // Author and the books above will be updated
+
+    _context.SaveChanges();
+
+    var author2 = new Author { FirstName = "Mehmet", LastName = "Inan" };
+
+    // Both context.Authors.Add(author) and context.Add() inserts into db.
+    _context.Add(author2);
+
+    _context.SaveChanges();
+}
+
+// ChangeTracker();
+void ChangeTracker()
+{
+    var author = new Author { FirstName = "Julie", LastName = "Lerman" };
+    author.Books.Add(new Book
+    {
+        Title = "Programming Entity Framework",
+        PublishDate = new DateTime(2009, 1, 1)
+    });
+    author.Books.Add(new Book
+    {
+        Title = "Programming Entity Framework 2nd Ed",
+        PublishDate = new DateTime(2010, 8, 1)
+    });
+
+    // If you call SaveChanges(), EF will call ChangeTracker.DetectChanges and save changes based on the results in the ChangeTracker.
+    // However, you can manually call the method.
+    // DetextChanges causes the ChangeTracker to update its knowledge of the state of all objects that it is tracking.
+    Console.WriteLine("Before: ", _context.ChangeTracker.DebugView.ShortView);
+    _context.ChangeTracker.DetectChanges();
+    Console.WriteLine("After: ", _context.ChangeTracker.DebugView.ShortView);
+
+    // Will NOT trigger any query execution
+    _context.Authors.Add(author);
+
+    _context.ChangeTracker.DetectChanges();
+    Console.WriteLine("After Add: ", _context.ChangeTracker.DebugView.ShortView);
+
+    // Will trigger query execution
+    // EF will set Book Id and Author ID and will update the objects after query execution
+    _context.SaveChanges();
+
+    _context.ChangeTracker.DetectChanges();
+    Console.WriteLine("After Save: ", _context.ChangeTracker.DebugView.ShortView);
+
+    author.FirstName = "New author";
+    author.Books.RemoveAt(0);
+
+    _context.ChangeTracker.DetectChanges();
+    Console.WriteLine("After Remove: ", _context.ChangeTracker.DebugView.ShortView);
+
+    _context.SaveChanges();
+
+    Console.WriteLine("After Save 2: ", _context.ChangeTracker.DebugView.ShortView);
 }
 
 // GetAuthorsWithBooks();
 void GetAuthorsWithBooks()
 {
-    using var context = new PubContext();
-    var authors = context.Authors.Include(a => a.Books).ToList();
+    // Eager loading
+    var authors = _context.Authors
+        .Include(a => a.Books).ToList();
     foreach (var author in authors)
     {
         Console.WriteLine(author.FirstName + " " + author.LastName);
@@ -164,48 +196,6 @@ void GetAuthorsWithBooks()
             Console.WriteLine(book.Title);
         }
     }
-}
-
-// AddAuthor();
-void AddAuthor()
-{
-    var author = new Author { FirstName = "Josie", LastName = "Newf" };
-    using var context = new PubContext();
-    context.Authors.Add(author);
-    context.SaveChanges();
-}
-
-// GetAuthors();
-void GetAuthors()
-{
-    using var context = new PubContext();
-    var authors = context.Authors.ToList();
-    foreach (var author in authors)
-    {
-        Console.WriteLine(author.FirstName + " " + author.LastName);
-    }
-}
-
-
-PubContext _context = new PubContext();
-//this assumes you are working with the populated
-//database created in previous module
-
-// QueryFilters();
-void QueryFilters()
-{
-    //var name = "Josie";
-    //var authors=_context.Authors.Where(s=>s.FirstName==name).ToList();
-    var filter = "L%";
-    var authors = _context.Authors
-        .Where(a => EF.Functions.Like(a.LastName, filter)).ToList();
-}
-
-// QueryAggregate();
-void QueryAggregate()
-{
-    var author = _context.Authors.OrderByDescending(a => a.FirstName)
-        .FirstOrDefault(a => a.LastName == "Lerman");
 }
 
 // SortAuthors();
@@ -222,22 +212,6 @@ void SortAuthors()
     Console.WriteLine("**Descending Last and First**");
     authorsDescending.ForEach(a => Console.WriteLine(a.LastName + "," + a.FirstName));
     var lermans = _context.Authors.Where(a => a.LastName == "Lerman").OrderByDescending(a => a.FirstName).ToList();
-}
-
-// FindIt();
-void FindIt()
-{
-    var authorIdTwo = _context.Authors.Find(2);
-}
-
-// AddSomeMoreAuthors();
-void AddSomeMoreAuthors()
-{
-    _context.Authors.Add(new Author { FirstName = "Rhoda", LastName = "Lerman" });
-    _context.Authors.Add(new Author { FirstName = "Don", LastName = "Jones" });
-    _context.Authors.Add(new Author { FirstName = "Jim", LastName = "Christopher" });
-    _context.Authors.Add(new Author { FirstName = "Stephen", LastName = "Haunts" });
-    _context.SaveChanges();
 }
 
 // SkipAndTakeAuthors();
@@ -266,7 +240,9 @@ void InsertMultipleAuthors()
        new Author { FirstName = "Hugh", LastName = "Howey" },
        new Author { FirstName = "Isabelle", LastName = "Allende" }
     };
+    // RemoveRange and UpdateRange are also available
     _context.AddRange(newAuthors);
+    
     _context.SaveChanges();
 }
 
@@ -281,36 +257,28 @@ void DeleteAnAuthor1()
     }
 }
 
-// VariousOperations();
-void VariousOperations()
+// BulkImmediateDelete();
+void BulkImmediateDelete()
 {
-    var author = _context.Authors.Find(2); //this is currently Josie Newf
-    author.LastName = "Newfoundland";
-    var newauthor = new Author { LastName = "Appleman", FirstName = "Dan" };
-    _context.Authors.Add(newauthor);
-    _context.SaveChanges();
+    // Bulk immediate delete
+    int totalNumberOfRowsDeleted = _context.Books.Where(x => x.BookId > 10).ExecuteDelete();
 }
 
-// RetrieveAndUpdateAuthor();
-void RetrieveAndUpdateAuthor()
+// BulkImmediateUpdate();
+void BulkImmediateUpdate()
 {
-    var author = _context.Authors.FirstOrDefault(a => a.FirstName == "Julie" && a.LastName == "Lerman");
-    if (author != null)
-    {
-        author.FirstName = "Julia";
-        _context.SaveChanges();
-    }
+    // Bulk immediate update
+    int totalNumberOfRowsUpdated = _context.Authors.Where(x => x.AuthorId > 15).ExecuteUpdate(x => x.SetProperty(x => x.FirstName, "Mehmet"));
 }
 
 // CoordinatedRetrieveAndUpdateAuthor();
 void CoordinatedRetrieveAndUpdateAuthor()
 {
     var author = FindThatAuthor(3);
-    if (author?.FirstName == "Julie")
-    {
-        author.FirstName = "Julia";
-        SaveThatAuthor(author);
-    }
+    // There is no context anymore so the author is not tracked anymore.
+
+    author.FirstName = "Julia";
+    SaveThatAuthor(author);
 }
 
 // FindThatAuthor();
@@ -352,14 +320,6 @@ void RetrieveAndUpdateMultipleAuthors()
     Console.WriteLine("After:" + _context.ChangeTracker.DebugView.ShortView);
 }
 
-// InsertAuthor();
-void InsertAuthor()
-{
-    var author = new Author { FirstName = "Frank", LastName = "Herbert" };
-    _context.Authors.Add(author);
-    _context.SaveChanges();
-}
-
 // InsertMultipleAuthorsPassedIn();
 void InsertMultipleAuthorsPassedIn(List<Author> listOfAuthors)
 {
@@ -383,14 +343,16 @@ void BulkAddUpdate()
 }
 
 
-//_context.Database.EnsureDeleted();
-//_context.Database.EnsureCreated();
+// _context.Database.EnsureDeleted();
+// _context.Database.EnsureCreated();
 
 // AddBook();
 void AddBook()
 {
     var book = new Book { Title = "How to crash your app" };
     _context.Books.Add(book);
+
+    // AuthorId is required so this will fail
     _context.SaveChanges();
 }
 
@@ -468,11 +430,11 @@ void FilterUsingRelatedData()
         .ToList();
 }
 
-// LazyLoadBooksFromAnAuthor();
+LazyLoadBooksFromAnAuthor();
 void LazyLoadBooksFromAnAuthor()
 {
     //requires lazy loading to be set up in your app
-    var author = _context.Authors.FirstOrDefault(a => a.LastName == "Howey");
+    var author = _context.Authors.Find(1);
     foreach (var book in author.Books)
     {
         Console.WriteLine(book.Title);
@@ -603,7 +565,6 @@ void UnAssignAnArtistFromACover()
 }
 
 //DeleteAnObjectThatsInARelationship();
-
 void DeleteAnObjectThatsInARelationship()
 {
     var cover = _context.Covers.Find(4);
@@ -612,7 +573,6 @@ void DeleteAnObjectThatsInARelationship()
 }
 
 //ReassignACover();
-
 void ReassignACover()
 {
     var coverwithartist4 = _context.Covers
@@ -624,8 +584,6 @@ void ReassignACover()
     var artist3 = _context.Artists.Find(3);
     coverwithartist4.Artists.Add(artist3);
     _context.ChangeTracker.DetectChanges();
-
-
 }
 
 //RetrieveAnArtistWithTheirCovers();
@@ -746,8 +704,8 @@ void MultiLevelInclude()
 {
     var authorGraph = _context.Authors.AsNoTracking()
         .Include(a => a.Books)
-        .ThenInclude(b => b.Cover)
-        .ThenInclude(c => c.Artists)
+            .ThenInclude(b => b.Cover)
+            .ThenInclude(c => c.Artists)
         .FirstOrDefault(a => a.AuthorId == 1);
 
     Console.WriteLine(authorGraph?.FirstName + " " + authorGraph?.LastName);
@@ -792,7 +750,7 @@ void AddCoverToExistingBook()
 //AddCoverToExistingBookThatHasAnUnTrackedCover();
 void AddCoverToExistingBookThatHasAnUnTrackedCover()
 {
-    var book = _context.Books.Find(5); //The Never
+    var book = _context.Books.Find(5);
     book.Cover = new Cover { DesignIdeas = "A spiral" };
     _context.SaveChanges();
 }
@@ -801,7 +759,7 @@ void AddCoverToExistingBookThatHasAnUnTrackedCover()
 void AddCoverToExistingBookWithTrackedCover()
 {
     var book = _context.Books.Include(b => b.Cover)
-                             .FirstOrDefault(b => b.BookId == 5); //The Never
+                             .FirstOrDefault(b => b.BookId == 5);
     book.Cover = new Cover { DesignIdeas = "A spiral" };
     _context.ChangeTracker.DetectChanges();
     var debugview = _context.ChangeTracker.DebugView.ShortView;
@@ -812,7 +770,7 @@ void ProtectingFromUniqueFK()
 {
     var TheNeverDesignIdeas = "A spirally spiral";
     var book = _context.Books.Include(b => b.Cover)
-                             .FirstOrDefault(b => b.BookId == 5); //The Never
+                             .FirstOrDefault(b => b.BookId == 5);
     if (book.Cover != null)
     {
         book.Cover.DesignIdeas = TheNeverDesignIdeas;
@@ -864,7 +822,6 @@ void GetAuthorsByArtist()
                                  .Where(a => a.Artist.StartsWith("K")).ToList();
     var debugView = _context.ChangeTracker.DebugView.ShortView;
 }
-
 
 
 // RawSqlStoredProc();
