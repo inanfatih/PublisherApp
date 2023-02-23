@@ -21,7 +21,8 @@ namespace PublisherData
             ).LogTo(Console.WriteLine,
                     new[] { DbLoggerCategory.Database.Command.Name},
                     LogLevel.Information)
-            .EnableSensitiveDataLogging();
+            .EnableSensitiveDataLogging()
+            .UseLazyLoadingProxies();
         }
         
         // Further configuration of the context

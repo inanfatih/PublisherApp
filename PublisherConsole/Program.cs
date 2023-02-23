@@ -430,14 +430,15 @@ void FilterUsingRelatedData()
         .ToList();
 }
 
-LazyLoadBooksFromAnAuthor();
+// LazyLoadBooksFromAnAuthor();
 void LazyLoadBooksFromAnAuthor()
 {
-    //requires lazy loading to be set up in your app
-    var author = _context.Authors.Find(1);
-    foreach (var book in author.Books)
+    //requires lazy loading to be set up
+    var authors = _context.Authors.ToList();
+    foreach (var author in authors)
     {
-        Console.WriteLine(book.Title);
+        // Books of each author are lazy loaded separately in each loop
+        Console.WriteLine(author.Books.Count());
     }
 }
 
