@@ -14,30 +14,50 @@ using (PubContext context = new PubContext())
 
 PubContext _context = new PubContext();
 
- ExecutionTiming();
+ //ExecutionTiming();
 void ExecutionTiming()
 {
     //Nothing Happens
-    var query = _context.Authors;
-    //Now query executes
-    List<Author> list = query.ToList();
+    var authorsDbSet = _context.Authors;
+    //Now authorsDbSet executes
+    List<Author> list = authorsDbSet.ToList();
+
+    // These methods trigger immediate executions of the queries
+    // ToList()
+    // First()
+    // FirstOrDefault()
+    // Single()
+    // SingleOrDefault()
+    // Find()
+    // SaveChanges()
+    // ExecuteUpdate()
+    // ExecuteDelete()
+
+    // ToListAsync()
+    // FirstAsync()
+    // FirstOrDefaultAsync()
+    // SingleAsync()
+    // SingleOrDefaultAsync()
+    // FindAsync()
+    // SaveChangesAsync()
+    // ExecuteUpdateAsync()
+    // ExecuteDeleteAsync()
+    // etc....
+
     //Also here:
-    foreach (var p in query) { }
+    foreach (var p in authorsDbSet) {
+        Console.WriteLine(p.FirstName);
+    }
     //And here:
-    _ = query.FirstOrDefault();
+    _ = authorsDbSet.FirstOrDefault();
     //And here:
-    _ = query.SingleOrDefault(x => x.AuthorId == 1);
-    //And here
-    _ = _context.Authors.Find(1);
+    _ = authorsDbSet.SingleOrDefault(x => x.AuthorId == 1);
 }
 
 
-// ParametrizedVariables();
+//ParametrizedVariables();
 void ParametrizedVariables()
 {
-    // EF Core will always parametrize INSERT, UPDATE, DELETE commands
-    // Variables will be parametrized in SELECTs
-
     var query = _context.Authors;
 
     _ = query.FirstOrDefault(x => x.AuthorId == 1);
@@ -54,7 +74,7 @@ void GetByPrimaryKey()
     //Get by primary key with immediate execution
     _ = _context.Authors.Find(1);
     //Complex PK with immediate execution
-    _ = _context.Artists.Find(2, 1688);
+    _ = _context.Authors.Find(2, 1688);
 }
 
 // SelectWithMultipleClauses();
@@ -115,10 +135,10 @@ void AddAuthorWithBook()
         PublishDate = new DateTime(2010, 8, 1)
     });
 
-    // Will NOT trigger any query execution
+    // Will NOT trigger any authorsDbSet execution
     _context.Authors.Add(author);
-    // Will trigger query execution
-    // EF will set Book Id and Author ID and will update the objects after query execution
+    // Will trigger authorsDbSet execution
+    // EF will set Book Id and Author ID and will update the objects after authorsDbSet execution
     _context.SaveChanges();
 
     author.FirstName = "New author";
@@ -158,14 +178,14 @@ void ChangeTracker()
     _context.ChangeTracker.DetectChanges();
     Console.WriteLine("After: ", _context.ChangeTracker.DebugView.ShortView);
 
-    // Will NOT trigger any query execution
+    // Will NOT trigger any authorsDbSet execution
     _context.Authors.Add(author);
 
     _context.ChangeTracker.DetectChanges();
     Console.WriteLine("After Add: ", _context.ChangeTracker.DebugView.ShortView);
 
-    // Will trigger query execution
-    // EF will set Book Id and Author ID and will update the objects after query execution
+    // Will trigger authorsDbSet execution
+    // EF will set Book Id and Author ID and will update the objects after authorsDbSet execution
     _context.SaveChanges();
 
     _context.ChangeTracker.DetectChanges();
